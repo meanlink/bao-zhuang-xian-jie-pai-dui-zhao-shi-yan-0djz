@@ -15,6 +15,25 @@ def metadata():
             "method": "改善量=均值(A)−均值(B)；SE=√(sA²/nA+sB²/nB)；Welch–Satterthwaite 自由度；双侧 t 检验和 t 分布置信区间；Cohen d 用合并标准差。", "limitations": ["假定观测片段近似独立", "未校正多个班次的探索性比较", "显著节拍差不能证明成品质检合格"]}
 
 
+def validate_row(row, index=None):
+    """按业务字段口径校验一行记录。普通导入与秒表采集共用，失败抛 ValueError。"""
+    if not isinstance(row, dict):
+        raise ValueError('记录必须是对象')
+    where = f'第 {index+1} 行' if index is not None else '上报记录'
+    for c in metadata()['columns']:
+        value = row.get(c['key'])
+        if value is None or value == '':
+            raise ValueError(f'{where}缺少字段 {c["label"]}')
+        if c['type'] == 'number':
+            try:
+                if isinstance(value, bool) or not math.isfinite(float(value)):
+                    raise ValueError()
+                row[c['key']] = float(value)
+            except (TypeError, ValueError, OverflowError):
+                raise ValueError(f'{where} {c["label"]} 必须为有限数值')
+    return row
+
+
 def seed_records():
     rng = random.Random(1004)
     rows = []
